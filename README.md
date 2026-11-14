@@ -1,15 +1,24 @@
 # API AI driver
 
-**Screen control for software that integrates an AI API. Let the AI assistant operate your software's screen — web, desktop, mobile — safely. Open-sourced by [VTransOps](https://vtransops.com).**
+**Let an AI assistant operate your software through its screen — the way a person does — without reading your source code and without building an API for every screen.**
 
-The AI sees only numbered text and has four actions: click, type, select, scroll. Decision controls — send, pay, place order, delete, sign, approve — **are always pressed by a person**.
+Open-sourced by [VTransOps](https://vtransops.com).
 
-## Why
+## What it does
 
-**Efficiency**
-- One sentence instead of a dozen clicks, in the session already open, with no separate robot browser.
-- Acts by element number: no mis-clicked coordinates, no vision model reading screenshots.
-- Add an assistant to existing software without writing an API for every screen.
+- **Reads the screen as text.** Every button and field on the open screen gets a number, e.g. `[12] Save`.
+- **Acts like a user.** The AI clicks, types, selects and scrolls by number — nothing else.
+- **Guards every action.** Decision buttons — send, pay, place order, delete, sign, approve — are never pressed by the AI. A warning on screen stops it, and it reports the message word for word.
+
+## Benefits
+
+- **No source code needed.** The AI works on the finished interface. It does not read, change or depend on your code, and you do not write a dedicated API for each screen. Integration is one script on the page plus optional `data-ai` markers on decision buttons.
+- **Works on software you already have.** Web today; desktop and mobile through an adapter on the operating system's accessibility layer.
+- **Saves time.** One sentence replaces a dozen clicks, in the session the user already has open — no second login, no robot browser.
+- **Precise and cheap.** Element numbers instead of screen coordinates; no screenshots, no vision model.
+- **Safe by design.** The API key stays on the server, the AI acts only with the user's own permissions, and screen text is treated as data — never as instructions.
+
+## Security in detail
 
 **Data security**
 - The model's API key lives only on the server; the user's device never calls the model provider directly.
@@ -21,7 +30,6 @@ The AI sees only numbered text and has four actions: click, type, select, scroll
 **Isolation of system code**
 - The AI cannot run code. The page library's `executeJavascript` (`eval`) is never called, and a CSP without `unsafe-eval` makes the browser refuse it anyway.
 - Model loop, prompt, tools and permissions stay on the server; the screen only receives type-checked commands.
-- A warning on screen stops the assistant, which reports it word for word.
 
 ## Compared with page-agent / page-controller
 
