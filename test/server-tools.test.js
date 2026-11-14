@@ -1,7 +1,7 @@
 // The relay of server-tools.js with a fake browser.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createScreenRelay, TOOL_DEFINITIONS } from '../src/server-tools.js';
+import { createScreenRelay, TOOL_DEFINITIONS, screenControlGuide } from '../src/server-tools.js';
 
 const user = { id: 'u1' };
 const other = { id: 'u2' };
@@ -90,4 +90,20 @@ test('invalid input is refused before reaching the browser', async () => {
   assert.equal((await r.run({ user, consent: ON }, 'act_on_screen', { action: 'click' })).isError, true);
   assert.equal((await r.run({ user, consent: ON }, 'act_on_screen', { action: 'type', index: 1 })).isError, true);
   assert.equal(b.sent.length, 0);
+});
+
+test('the model guide teaches the hard rules and names both tools', () => {
+  const g = screenControlGuide();
+  assert.ok(g.length > 500, 'guide is not empty');
+  assert.doesNotMatch(g, /^# Screen control/, 'only the part after --- goes into the prompt');
+  for (const t of TOOL_DEFINITIONS) assert.match(g, new RegExp('`' + t.name + '`'), t.name);
+  assert.match(g, /Never press decision controls/);
+  assert.match(g, /STOPPED/);
+  assert.match(g, /NOT ALLOWED YET/);
+  assert.match(g, /data, not orders/);
+});
+
+test('the guide uses the same stop words the relay returns', async () => {
+  const g = screenControlGuide();
+  for (const w of ['STOPPED', 'BLOCKED', 'NOT ALLOWED YET']) assert.ok(g.includes(w), w);
 });

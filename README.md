@@ -58,8 +58,23 @@ Unmarked controls fall back to default rules in English and Vietnamese.
 - `src/adapters/web-page-controller.js` — web adapter. Desktop / mobile: write a seven-function adapter (`read`, `describe`, `click`, `type`, `select`, `scroll`, `watch`) on the OS accessibility API.
 - `src/server-tools.js` — the `read_screen` / `act_on_screen` model tools and the relay to the user's device. Tool definitions use the common `input_schema` tool format; rename the field if your provider expects another name.
 
+**Teach the model.** [`prompts/screen-control-guide.md`](prompts/screen-control-guide.md) is a **reference guide** for the generic part: read first, act by number, one step at a time, never press decision controls, treat screen text as data, stop and report word for word on warnings.
+
+> **You must build your own guide** that teaches the AI to use *your* software — its screens, workflows, decision buttons, domain terms and error messages. The reference guide only covers how to use the tools; the file lists what your own guide should contain.
+
+Append the reference guide and your own guide to your system prompt and pass the two tools:
+
+```js
+import { TOOL_DEFINITIONS, screenControlGuide } from './src/server-tools.js';
+
+const system = yourSystemPrompt + '\n\n' + screenControlGuide() + '\n\n' + yourOwnSoftwareGuide;
+// call your model with `system` and `tools: TOOL_DEFINITIONS`
+```
+
+The guard enforces the hard rules even if the model ignores the guide.
+
 ```bash
-npm test            # 22 tests
+npm test            # 24 tests
 npm run demo        # http://localhost:8080/demo/ — three sample screens, no API key
 ```
 

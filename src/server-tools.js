@@ -20,6 +20,19 @@
  */
 
 import { randomBytes } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+
+/**
+ * The REFERENCE guide that teaches the model how to use the two tools (prompts/screen-control-guide.md, the text after
+ * the first `---`). It is only the generic part: append it to your system prompt together with your OWN guide that
+ * teaches the model your software (screens, workflows, decision buttons, domain terms, error messages).
+ * The guard enforces the hard rules even if the model ignores the guide.
+ */
+export function screenControlGuide() {
+  const md = readFileSync(new URL('../prompts/screen-control-guide.md', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const i = md.indexOf('\n---\n');
+  return (i >= 0 ? md.slice(i + 5) : md).trim();
+}
 
 export const TOOL_DEFINITIONS = Object.freeze([
   Object.freeze({
