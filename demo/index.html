@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>API AI driver — demo</title>
+<style>
+  :root { --bg: #f6f7f9; --card: #fff; --ink: #1d2330; --muted: #5b6475; --line: #d9dde4; --blue: #1f6feb; --red: #c62828; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.5 system-ui, sans-serif; background: var(--bg); color: var(--ink); }
+  main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; padding: 16px; max-width: 1200px; margin: 0 auto; }
+  @media (max-width: 800px) { main { grid-template-columns: 1fr; } }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 16px; }
+  h1 { font-size: 18px; margin: 0 0 4px; } h2 { font-size: 16px; margin: 0 0 12px; }
+  .muted { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
+  label { display: block; margin: 8px 0 4px; font-size: 13px; color: var(--muted); }
+  input, select { width: 100%; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; font: inherit; }
+  button { padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px; background: #fff; font: inherit; cursor: pointer; margin: 4px 4px 0 0; }
+  button.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+  .tabs button[aria-pressed="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .screen[hidden] { display: none; }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 14px; }
+  td, th { border-bottom: 1px solid var(--line); padding: 6px; text-align: left; }
+  #toast { min-height: 24px; margin-top: 12px; font-size: 14px; }
+  #toast.error { color: var(--red); }
+  pre { background: #0f1420; color: #d6deeb; padding: 12px; border-radius: 6px; overflow: auto; max-height: 380px; font-size: 12px; white-space: pre-wrap; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+</style>
+</head>
+<body>
+<main>
+  <!-- Work area: the only part the assistant can see. Three kinds of software, one guard. -->
+  <section id="work-area">
+    <h1>Three kinds of software, one guard</h1>
+    <p class="muted">The assistant sees only this panel.</p>
+    <div class="tabs">
+      <button data-screen="dispatch" aria-pressed="true">Transport dispatch</button>
+      <button data-screen="shop" aria-pressed="false">Online shop</button>
+      <button data-screen="accounting" aria-pressed="false">Accounting</button>
+    </div>
+
+    <div class="screen" id="dispatch">
+      <label for="find">Find order</label>
+      <input id="find" placeholder="Order id, customer, address">
+      <button id="filter">Filter</button>
+      <table><thead><tr><th>Order</th><th>Customer</th><th>Due</th></tr></thead><tbody id="orders"></tbody></table>
+      <button id="to-basket" data-ai="write">Move to basket</button>
+      <button id="run" data-ai="write">⚙️ Run dispatch</button>
+      <button id="confirm" class="primary" data-ai="block">✅ Confirm &amp; Start</button>
+    </div>
+
+    <div class="screen" id="shop" hidden>
+      <label for="product">Product</label>
+      <select id="product"><option>T-shirt</option><option>Running shoes</option><option>Water bottle</option></select>
+      <button id="add-cart" data-ai="write">Add to cart</button>
+      <label for="address">Delivery address</label>
+      <input id="address">
+      <button id="save-address">Save address</button>
+      <button id="place-order" class="primary">Place order</button>
+      <button id="refund">Refund</button>
+    </div>
+
+    <div class="screen" id="accounting" hidden>
+      <label for="amount">Amount</label>
+      <input id="amount" inputmode="numeric">
+      <label for="memo">Description</label>
+      <input id="memo">
+      <button id="save-entry">Save entry</button>
+      <button id="issue-invoice" class="primary">Issue invoice</button>
+      <button id="transfer">Transfer</button>
+    </div>
+
+    <div id="toast" role="alert" aria-live="assertive"></div>
+  </section>
+
+  <!-- Model stand-in: hidden from the assistant (not read, not clickable). -->
+  <section id="model-panel">
+    <h2>Send commands as the model would</h2>
+    <p class="muted">No API key needed: this panel plays the model and sends the two tools, read_screen and act_on_screen.</p>
+    <button id="read" class="primary">read_screen</button>
+    <div class="row">
+      <div><label for="action">action</label>
+        <select id="action"><option>click</option><option>type</option><option>select</option><option>scroll</option></select></div>
+      <div><label for="index">index</label><input id="index" type="number" min="0" value="0"></div>
+    </div>
+    <label for="value">value (type / select)</label>
+    <input id="value">
+    <label><input id="auto-save" type="checkbox" style="width:auto"> The user has turned on auto-save</label>
+    <button id="act" class="primary">act_on_screen</button>
+    <pre id="out">Press read_screen to see the screen as numbered text.</pre>
+  </section>
+</main>
+
+<script type="module">
+  import { createScreenAgent } from '../src/screen-agent.js';
+  import { createWebController } from '../src/adapters/web-page-controller.js';
+
+  /* ── Three mock screens ── */
+  const toast = (text, error) => { const t = document.getElementById('toast'); t.textContent = text; t.className = error ? 'error' : ''; };
+  const on = (id, f) => { document.getElementById(id).onclick = f; };
+  document.querySelectorAll('.tabs button').forEach((b) => b.onclick = () => {
+    document.querySelectorAll('.tabs button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    document.querySelectorAll('.screen').forEach((s) => { s.hidden = s.id !== b.dataset.screen; });
+    toast('');
+  });
+
+  const ORDERS = [['ORD-001', 'Electronics, District 10', 'today'], ['ORD-002', 'Building supplies, Thu Duc', 'today'], ['ORD-003', 'Furniture, District 7', 'tomorrow']];
+  const draw = (q) => document.getElementById('orders').replaceChildren(...ORDERS.filter((o) => !q || o.join(' ').toLowerCase().includes(q.toLowerCase())).map((o) => {
+    const tr = document.createElement('tr'); o.forEach((c) => { const td = document.createElement('td'); td.textContent = c; tr.append(td); }); return tr; }));
+  draw('');
+  on('filter', () => { draw(document.getElementById('find').value); toast('List filtered.'); });
+  on('to-basket', () => toast('Orders moved to the basket.'));
+  on('run', () => toast('The solver planned the routes (not pushed to drivers yet).'));
+  on('confirm', () => toast('Routes pushed to drivers.'));
+
+  on('add-cart', () => toast('Added "' + document.getElementById('product').value + '" to the cart.'));
+  on('save-address', () => document.getElementById('address').value.trim() ? toast('Address saved.') : toast('Error: delivery address is missing.', true));
+  on('place-order', () => toast('Order placed and card charged.'));
+  on('refund', () => toast('Customer refunded.'));
+
+  on('save-entry', () => /^\d+$/.test(document.getElementById('amount').value.trim()) ? toast('Entry saved.') : toast('Error: invalid amount.', true));
+  on('issue-invoice', () => toast('Invoice issued to the tax authority.'));
+  on('transfer', () => toast('Money transferred.'));
+
+  /* ── The assistant: shared guard + web adapter on alibaba/page-agent page-controller (MIT) ── */
+  const agent = createScreenAgent({
+    controller: createWebController({
+      loadPageController: () => import('https://cdn.jsdelivr.net/npm/@page-agent/page-controller@1.12.4/dist/lib/page-controller.js')
+        .then((m) => new m.PageController({ viewportExpansion: 600 })),
+      hide: ['model-panel'],
+    }),
+  });
+  const out = document.getElementById('out');
+  const show = (o) => { out.textContent = typeof o === 'string' ? o : JSON.stringify(o, null, 2); };
+  on('read', async () => { const r = await agent.read(); show(r.ok ? r.text : r); });
+  on('act', async () => {
+    show('…');
+    show(await agent.act({
+      action: document.getElementById('action').value,
+      index: Number(document.getElementById('index').value),
+      value: document.getElementById('value').value,
+      allowWrite: document.getElementById('auto-save').checked,
+    }));
+  });
+</script>
+</body>
+</html>

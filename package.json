@@ -1,0 +1,15 @@
+{
+  "name": "api-ai-driver",
+  "version": "1.0.0",
+  "description": "API AI driver — screen control for software that integrates an AI API, safe by design. Open-sourced by VTransOps.",
+  "type": "module",
+  "license": "MIT",
+  "keywords": ["ai-agent", "browser-automation", "computer-use", "guardrails", "prompt-injection", "page-agent", "vietnamese"],
+  "scripts": {
+    "test": "node --test",
+    "demo": "node scripts/serve.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
