@@ -25,6 +25,9 @@
   #toast.error { color: var(--red); }
   pre { background: #0f1420; color: #d6deeb; padding: 12px; border-radius: 6px; overflow: auto; max-height: 380px; font-size: 12px; white-space: pre-wrap; }
   .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  #caption { margin: 10px 0 4px; padding: 10px 12px; border-radius: 6px; background: #eef3ff; font-size: 14px; min-height: 22px; }
+  #caption:empty { display: none; }
+  #caption b.ok { color: #1a7f37; } #caption b.stop { color: var(--red); }
 </style>
 </head>
 <body>
@@ -77,7 +80,9 @@
   <section id="model-panel">
     <h2>Send commands as the model would</h2>
     <p class="muted">No API key needed: this panel plays the model and sends the two tools, read_screen and act_on_screen.</p>
-    <button id="read" class="primary">read_screen</button>
+    <button id="play" class="primary">▶ Play the demo</button>
+    <div id="caption" aria-live="polite"></div>
+    <button id="read">read_screen</button>
     <div class="row">
       <div><label for="action">action</label>
         <select id="action"><option>click</option><option>type</option><option>select</option><option>scroll</option></select></div>
@@ -133,6 +138,44 @@
   const out = document.getElementById('out');
   const show = (o) => { out.textContent = typeof o === 'string' ? o : JSON.stringify(o, null, 2); };
   on('read', async () => { const r = await agent.read(); show(r.ok ? r.text : r); });
+
+  /* ── ▶ Play: a scripted walk-through of what the guard does. `?step=N` runs N steps at once (used for screenshots). ── */
+  const caption = document.getElementById('caption');
+  const say = (html) => { caption.innerHTML = html; };
+  const numberOf = (text, label) => { const line = text.split('\n').find((l) => l.includes(label)); return line ? Number((line.match(/\[(\d+)\]/) || [])[1]) : -1; };
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const verdict = (r) => {
+    const lines = String(r.text || '').split('\n');
+    if (r.ok) { const seen = (lines[1] || '').replace(/^On screen: /, ''); return '<b class="ok">Done.</b>' + (seen ? ' Screen: “' + esc(seen) + '”' : ''); }
+    const m = lines[0].match(/^STOPPED because the screen says: "[^"]*"/) || lines[0].match(/^[^.]*\./);
+    return '<b class="stop">' + esc(m ? m[0] : lines[0].slice(0, 90)) + '</b>';
+  };
+  const doAct = async (label, action, opts = {}) => {
+    const screen = (await agent.read()).text;
+    const index = numberOf(screen, label);
+    const r = await agent.act({ action, index, value: opts.value || '', allowWrite: !!opts.autoSave });
+    show(r);
+    say('AI → <code>' + action + ' [' + index + ']</code> “' + esc(opts.name || label) + '”' + (opts.value ? ' ← “' + esc(opts.value) + '”' : '') + (opts.autoSave ? ' (auto-save on)' : '') + '<br>' + verdict(r));
+  };
+  const STEPS = [
+    async () => { const r = await agent.read(); show(r.text); say('AI → <code>read_screen</code>: the screen as numbered text. The AI acts only by these numbers.'); },
+    async () => doAct('Run dispatch', 'click', { name: '⚙️ Run dispatch' }),
+    async () => doAct('Confirm &', 'click', { name: '✅ Confirm & Start' }),
+    async () => doAct('Online shop', 'click'),
+    async () => doAct('Place order', 'click'),
+    async () => doAct('Save address', 'click', { autoSave: true }),
+    async () => doAct('id=address', 'type', { name: 'Delivery address', value: '12 Nguyen Hue, District 1' }),
+    async () => doAct('Save address', 'click', { autoSave: true }),
+  ];
+  let playing = false;
+  const play = async (upTo, delayMs) => {
+    if (playing) return; playing = true;
+    try { for (let i = 0; i < Math.min(upTo, STEPS.length); i++) { await STEPS[i](); if (delayMs) await new Promise((r) => setTimeout(r, delayMs)); } }
+    finally { playing = false; }
+  };
+  on('play', () => play(STEPS.length, 2200));
+  const stepParam = Number(new URLSearchParams(location.search).get('step'));
+  if (stepParam > 0) play(stepParam, 0).then(() => document.documentElement.setAttribute('data-ready', String(stepParam)));
   on('act', async () => {
     show('…');
     show(await agent.act({

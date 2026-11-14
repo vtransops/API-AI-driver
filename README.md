@@ -4,6 +4,10 @@
 
 Open-sourced by [VTransOps](https://vtransops.com).
 
+**▶ [Try the live demo](https://vtransops.github.io/API-AI-driver/demo/)** — no install, no API key. Press "Play the demo".
+
+![The AI reads the screen as numbered text; decision buttons are blocked; a warning on screen stops it](docs/demo.gif)
+
 ## What it does
 
 - **Reads the screen as text.** Every button and field on the open screen gets a number, e.g. `[12] Save`.
@@ -78,7 +82,7 @@ npm test            # 24 tests
 npm run demo        # http://localhost:8080/demo/ — three sample screens, no API key
 ```
 
-In the demo, press `read_screen` to see the screen as numbered text, then send commands by number: "✅ Confirm & Start", "Place order", "Refund" and "Issue invoice" are blocked; "Add to cart" and "Save entry" need auto-save; "Save address" with an empty field makes the screen show an error → stopped.
+In the demo, press "▶ Play the demo" for a guided run, or press `read_screen` to see the screen as numbered text and send commands by number yourself: "✅ Confirm & Start", "Place order", "Refund" and "Issue invoice" are blocked; "Add to cart" and "Save entry" need auto-save; "Save address" with an empty field makes the screen show an error → stopped.
 
 ## Limits
 
